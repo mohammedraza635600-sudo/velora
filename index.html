@@ -406,9 +406,72 @@
     .cat-strip{padding:36px 18px 6px;}
     .drawer{width:100%;}
   }
+  /* ---------- Intro Loader ---------- */
+  #introLoader{
+    position:fixed;inset:0;z-index:9999;
+    background:var(--deepest);
+    display:flex;align-items:center;justify-content:center;
+    animation:loaderFadeOut 0.8s ease forwards;
+    animation-delay:2.2s;
+  }
+  #introLoader .loader-inner{
+    text-align:center;
+  }
+  #introLoader .loader-logo{
+    font-family:var(--font-display);
+    font-size:46px;font-weight:400;
+    letter-spacing:0.5em;
+    color:var(--cream);
+    opacity:0;
+    margin-right:-0.5em;
+    animation:loaderLogoIn 1.3s ease forwards;
+  }
+  #introLoader .loader-line{
+    width:0;height:1px;background:var(--mid);
+    margin:22px auto;
+    animation:loaderLineIn 0.8s ease forwards;
+    animation-delay:1s;
+  }
+  #introLoader .loader-tagline{
+    font-family:var(--font-body);
+    font-size:11px;font-weight:600;letter-spacing:0.35em;
+    color:var(--light);
+    opacity:0;
+    text-transform:uppercase;
+    animation:loaderTaglineIn 0.8s ease forwards;
+    animation-delay:1.3s;
+  }
+  @keyframes loaderLogoIn{
+    0%{opacity:0;letter-spacing:0.9em;}
+    100%{opacity:1;letter-spacing:0.5em;}
+  }
+  @keyframes loaderLineIn{
+    0%{width:0;}
+    100%{width:140px;}
+  }
+  @keyframes loaderTaglineIn{
+    0%{opacity:0;transform:translateY(6px);}
+    100%{opacity:1;transform:translateY(0);}
+  }
+  @keyframes loaderFadeOut{
+    0%{opacity:1;visibility:visible;}
+    99%{opacity:0;visibility:visible;}
+    100%{opacity:0;visibility:hidden;pointer-events:none;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #introLoader{display:none;}
+  }
 </style>
 </head>
 <body>
+
+<div id="introLoader">
+  <div class="loader-inner">
+    <div class="loader-logo">VELORA</div>
+    <div class="loader-line"></div>
+    <div class="loader-tagline">The Verdant Edit</div>
+  </div>
+</div>
 
 <div class="announce">Complimentary shipping across India · Use code VERDANT10 for 10% off your first order</div>
 
