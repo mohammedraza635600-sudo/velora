@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VELORA Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --deepest:#0F2A1D; --dark:#375534; --mid:#6B9071; --light:#AEC3B0; --cream:#E3EED4;
+    --white:#FFFFFF; --danger:#B3462C; --font-display:'Fraunces',serif; --font-body:'Manrope',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-body);background:var(--cream);color:var(--deepest);}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;}
+
+  /* ---- Login Gate ---- */
+  #loginGate{
+    position:fixed;inset:0;background:var(--deepest);display:flex;align-items:center;justify-content:center;z-index:2000;
+  }
+  .login-box{background:var(--cream);padding:48px 44px;border-radius:24px;width:340px;text-align:center;}
+  .login-box h1{font-family:var(--font-display);font-size:26px;margin-bottom:6px;}
+  .login-box p{font-size:13px;color:var(--dark);margin-bottom:24px;}
+  .login-box input{width:100%;padding:14px 16px;border-radius:12px;border:1.4px solid var(--dark);background:var(--white);font-size:14px;margin-bottom:14px;}
+  .login-box button{width:100%;padding:14px;background:var(--deepest);color:var(--cream);border-radius:12px;font-weight:700;font-size:14px;}
+  .login-err{color:var(--danger);font-size:12.5px;margin-top:10px;min-height:16px;}
+
+  /* ---- Layout ---- */
+  #app{display:none;}
+  #app.show{display:flex;}
+  .sidebar{
+    width:230px;min-height:100vh;background:var(--deepest);color:var(--light);
+    position:fixed;top:0;left:0;display:flex;flex-direction:column;padding:26px 0;
+  }
+  .sidebar-logo{font-family:var(--font-display);color:var(--cream);font-size:22px;padding:0 26px 26px;border-bottom:1px solid rgba(227,238,212,0.12);margin-bottom:10px;}
+  .nav-item{
+    padding:13px 26px;font-size:13.5px;font-weight:600;letter-spacing:0.02em;
+    display:flex;align-items:center;gap:12px;cursor:pointer;color:var(--light);opacity:0.8;
+    border-left:3px solid transparent;
+  }
+  .nav-item:hover{opacity:1;background:rgba(227,238,212,0.06);}
+  .nav-item.active{opacity:1;background:rgba(227,238,212,0.1);border-left-color:var(--mid);color:var(--cream);}
+  .nav-item svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .sidebar-foot{margin-top:auto;padding:20px 26px 0;border-top:1px solid rgba(227,238,212,0.12);}
+  .sidebar-foot button{font-size:12.5px;color:var(--light);opacity:0.7;font-weight:600;}
+
+  .main{margin-left:230px;flex:1;padding:36px 44px;width:calc(100% - 230px);}
+  .page{display:none;}
+  .page.active{display:block;}
+  .page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;flex-wrap:wrap;gap:14px;}
+  .page-head h2{font-family:var(--font-display);font-size:28px;font-weight:500;}
+  .page-head p{font-size:13px;color:var(--dark);margin-top:4px;}
+
+  .btn{padding:13px 24px;border-radius:999px;font-size:13.5px;font-weight:700;background:var(--deepest);color:var(--cream);transition:transform 0.2s ease;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn-outline{background:transparent;border:1.4px solid var(--deepest);color:var(--deepest);}
+  .btn-danger{background:var(--danger);color:var(--cream);}
+  .btn-sm{padding:8px 16px;font-size:12px;}
+
+  /* ---- Stat cards ---- */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:36px;}
+  .stat-card{background:var(--white);border-radius:18px;padding:24px;border:1px solid rgba(15,42,29,0.08);}
+  .stat-card .label{font-size:11.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--mid);font-weight:700;margin-bottom:10px;}
+  .stat-card .value{font-family:var(--font-display);font-size:28px;font-weight:500;color:var(--deepest);}
+
+  /* ---- Table ---- */
+  .table-card{background:var(--white);border-radius:18px;border:1px solid rgba(15,42,29,0.08);overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--mid);font-weight:700;padding:16px 20px;border-bottom:1px solid rgba(15,42,29,0.08);}
+  td{padding:14px 20px;font-size:13.5px;border-bottom:1px solid rgba(15,42,29,0.06);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .prod-thumb{width:44px;height:54px;object-fit:cover;border-radius:8px;background:var(--light);}
+  .row-name{display:flex;align-items:center;gap:12px;}
+  .row-name strong{font-family:var(--font-display);font-size:14px;font-weight:500;}
+  .pill{display:inline-block;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;text-transform:capitalize;}
+  .pill.placed{background:#E8DFC4;color:#7A5C1E;}
+  .pill.packed{background:#D8E4C9;color:var(--dark);}
+  .pill.shipped{background:#C7DDE0;color:#25646B;}
+  .pill.delivered{background:var(--light);color:var(--deepest);}
+  .pill.cancelled{background:#F0D3CB;color:var(--danger);}
+  .pill.paid{background:var(--light);color:var(--deepest);}
+  .pill.pending{background:#E8DFC4;color:#7A5C1E;}
+  select.status-select{border:1.2px solid var(--dark);border-radius:8px;padding:6px 10px;font-size:12px;background:var(--white);color:var(--deepest);font-weight:600;}
+  .icon-action{width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;}
+  .icon-action:hover{background:rgba(15,42,29,0.07);}
+  .icon-action svg{width:15px;height:15px;stroke:var(--deepest);fill:none;stroke-width:1.8;}
+  .empty-row{text-align:center;color:var(--dark);opacity:0.6;padding:40px;font-size:13.5px;}
+  .search-bar{padding:12px 18px;border-radius:999px;border:1.4px solid var(--dark);font-size:13px;width:260px;background:var(--white);}
+
+  /* ---- Modal ---- */
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,42,29,0.55);display:none;align-items:flex-start;justify-content:center;z-index:1500;padding:40px 20px;overflow-y:auto;}
+  .modal-overlay.show{display:flex;}
+  .modal-box{background:var(--cream);border-radius:22px;max-width:640px;width:100%;padding:36px;position:relative;}
+  .modal-box h3{font-family:var(--font-display);font-size:22px;margin-bottom:22px;}
+  .modal-close{position:absolute;top:20px;right:20px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--white);}
+  .modal-close svg{width:14px;height:14px;stroke:var(--deepest);stroke-width:2;}
+  .form-row{margin-bottom:16px;}
+  .form-row label{display:block;font-size:12px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--dark);margin-bottom:6px;}
+  .form-row input, .form-row select, .form-row textarea{
+    width:100%;padding:12px 14px;border-radius:10px;border:1.4px solid var(--dark);background:var(--white);font-size:13.5px;color:var(--deepest);font-family:inherit;
+  }
+  .form-row textarea{min-height:80px;resize:vertical;}
+  .form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .img-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .img-slot{
+    aspect-ratio:3/4;border-radius:12px;border:1.6px dashed var(--dark);background:var(--white);
+    display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;
+  }
+  .img-slot img{width:100%;height:100%;object-fit:cover;}
+  .img-slot .plus{font-size:22px;color:var(--dark);}
+  .img-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;}
+  .toggle{width:42px;height:24px;border-radius:999px;background:var(--light);position:relative;cursor:pointer;transition:background 0.25s;}
+  .toggle.on{background:var(--deepest);}
+  .toggle .dot{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--white);transition:transform 0.25s;}
+  .toggle.on .dot{transform:translateX(18px);}
+  .modal-actions{display:flex;gap:12px;margin-top:24px;}
+  .modal-actions .btn{flex:1;}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--deepest);color:var(--cream);padding:14px 26px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all 0.3s ease;z-index:2100;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{background:var(--danger);}
+
+  @media (max-width:900px){
+    .sidebar{width:70px;}
+    .sidebar-logo{font-size:14px;padding:0 10px 20px;text-align:center;}
+    .nav-item span{display:none;}
+    .nav-item{justify-content:center;padding:14px 0;}
+    .main{margin-left:70px;width:calc(100% - 70px);padding:24px 18px;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .form-grid-2{grid-template-columns:1fr;}
+    table{font-size:12px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-box">
+    <h1>VELORA</h1>
+    <p>Admin access</p>
+    <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+    <button id="loginBtn">Log In</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div id="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">VELORA<br><small style="font-size:11px;opacity:0.6;">Admin Panel</small></div>
+    <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg><span>Dashboard</span></div>
+    <div class="nav-item" data-page="products"><svg viewBox="0 0 24 24"><path d="M4 8l8-5 8 5v9l-8 5-8-5z"/><path d="M4 8l8 5 8-5"/><path d="M12 13v8"/></svg><span>Products</span></div>
+    <div class="nav-item" data-page="orders"><svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12z"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg><span>Orders</span></div>
+    <div class="nav-item" data-page="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg><span>Customers</span></div>
+    <div class="nav-item" data-page="discounts"><svg viewBox="0 0 24 24"><path d="M20 12 12 20 4 12l4-8h8z"/><circle cx="12" cy="12" r="2"/></svg><span>Discounts</span></div>
+    <div class="nav-item" data-page="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.2a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.2a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 110 4h-.2a1.7 1.7 0 00-1.5 1z"/></svg><span>Settings</span></div>
+    <div class="nav-item" id="teamNavItem" data-page="team" style="display:none;"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><circle cx="17.5" cy="8" r="2.5"/><path d="M15 13.2c2.9.4 5 2.9 5 6.3"/></svg><span>Team</span></div>
+    <div class="sidebar-foot"><button id="logoutBtn">Log out</button></div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="page-head"><div><h2>Dashboard</h2><p>Live overview of your store</p></div></div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Total Revenue</div><div class="value" id="statRevenue">₹0</div></div>
+        <div class="stat-card"><div class="label">Total Orders</div><div class="value" id="statOrders">0</div></div>
+        <div class="stat-card"><div class="label">Products</div><div class="value" id="statProducts">0</div></div>
+        <div class="stat-card"><div class="label">Low Stock (&lt;5)</div><div class="value" id="statLowStock">0</div></div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="recentOrdersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PRODUCTS -->
+    <section class="page" id="page-products">
+      <div class="page-head">
+        <div><h2>Products</h2><p>Manage your catalogue</p></div>
+        <button class="btn" id="addProductBtn">+ Add Product</button>
+      </div>
+      <div style="margin-bottom:16px;"><input class="search-bar" id="productSearch" placeholder="Search products..."></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th></th></tr></thead>
+          <tbody id="productsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section class="page" id="page-orders">
+      <div class="page-head"><div><h2>Orders</h2><p>Track and update order status</p></div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Order #</th><th>Customer</th><th>Items</th><th>Amount</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CUSTOMERS -->
+    <section class="page" id="page-customers">
+      <div class="page-head"><div><h2>Customers</h2><p>Everyone who has ordered from VELORA</p></div></div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Total Spent</th></tr></thead>
+          <tbody id="customersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DISCOUNTS -->
+    <section class="page" id="page-discounts">
+      <div class="page-head">
+        <div><h2>Discounts</h2><p>Promo codes for your store</p></div>
+        <button class="btn" id="addDiscountBtn">+ New Code</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Code</th><th>Discount</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+          <tbody id="discountsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="page-head"><div><h2>Settings</h2><p>Store-wide configuration</p></div></div>
+      <div class="table-card" style="padding:30px;max-width:520px;">
+        <div class="form-row"><label>Announcement bar text</label><input id="setAnnouncement"></div>
+        <div class="toggle-row"><span>Cash on Delivery</span><div class="toggle" id="toggleCOD"><div class="dot"></div></div></div>
+        <div class="toggle-row"><span>UPI Payment</span><div class="toggle" id="toggleUPI"><div class="dot"></div></div></div>
+        <div class="form-row" style="margin-top:10px;"><label>UPI ID</label><input id="setUpiId" placeholder="yourname@upi"></div>
+        <button class="btn" id="saveSettingsBtn" style="margin-top:10px;">Save Settings</button>
+      </div>
+    </section>
+
+    <!-- TEAM (owner only) -->
+    <section class="page" id="page-team">
+      <div class="page-head">
+        <div><h2>Team</h2><p>People who can access this admin panel</p></div>
+        <button class="btn" id="addTeamBtn">+ Add Team Member</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Added</th><th></th></tr></thead>
+          <tbody id="teamBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="productModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="closeProductModal"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+    <h3 id="productModalTitle">Add Product</h3>
+    <div class="form-row"><label>Product Name</label><input id="fName"></div>
+    <div class="form-row"><label>Description</label><textarea id="fDesc"></textarea></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Category</label>
+        <select id="fCategory"><option value="women">Women</option><option value="men">Men</option><option value="accessories">Accessories</option></select>
+      </div>
+      <div class="form-row"><label>Gender</label>
+        <select id="fGender"><option value="women">Women</option><option value="men">Men</option><option value="unisex">Unisex</option></select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Price (₹)</label><input type="number" id="fPrice"></div>
+      <div class="form-row"><label>Old Price (optional)</label><input type="number" id="fOldPrice"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Sizes (comma separated)</label><input id="fSizes" placeholder="S, M, L, XL"></div>
+      <div class="form-row"><label>Stock Quantity</label><input type="number" id="fStock"></div>
+    </div>
+    <div class="toggle-row"><span>Featured product</span><div class="toggle" id="toggleFeatured"><div class="dot"></div></div></div>
+    <div class="form-row" style="margin-top:10px;"><label>Images (up to 6)</label></div>
+    <div class="img-grid" id="imgGrid"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelProductBtn">Cancel</button>
+      <button class="btn" id="saveProductBtn">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal-overlay" id="orderModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="closeOrderModal"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+    <h3>Order Details</h3>
+    <div id="orderModalBody"></div>
+  </div>
+</div>
+
+<!-- Discount Modal -->
+<div class="modal-overlay" id="discountModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="closeDiscountModal"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+    <h3>New Discount Code</h3>
+    <div class="form-row"><label>Code</label><input id="dCode" placeholder="VERDANT10"></div>
+    <div class="form-row"><label>Discount %</label><input type="number" id="dPercent"></div>
+    <div class="form-row"><label>Expires On</label><input type="date" id="dExpiry"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelDiscountBtn">Cancel</button>
+      <button class="btn" id="saveDiscountBtn">Create Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- Team Member Modal -->
+<div class="modal-overlay" id="teamModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="closeTeamModal"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+    <h3>Add Team Member</h3>
+    <p style="font-size:12.5px;color:var(--dark);margin-bottom:20px;line-height:1.6;">
+      Enter their email below to grant access. They still need a Supabase login account created with the <strong>same email</strong> — do that once from Supabase Dashboard → Authentication → Add User, then share the password with them.
+    </p>
+    <div class="form-row"><label>Full Name</label><input id="tName"></div>
+    <div class="form-row"><label>Email</label><input id="tEmail" type="email"></div>
+    <div class="form-row"><label>Role</label>
+      <select id="tRole"><option value="admin">Admin</option><option value="owner">Owner</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelTeamBtn">Cancel</button>
+      <button class="btn" id="saveTeamBtn">Grant Access</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   VELORA Admin — connected to Supabase
+   ============================================================ */
+const SUPABASE_URL = "https://usbpvtgxtkvmrebllhce.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzYnB2dGd4dGt2bXJlYmxsaGNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NTIzNTUsImV4cCI6MjA5OTMyODM1NX0.ITx7v1SKCGLPUa3CrSo7vK1-MlarbrFpdjLA5nyMT0k";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentAdmin = null; // {email, full_name, role}
+let allProducts = [];
+let allOrders = [];
+let allCustomers = [];
+let allDiscounts = [];
+let allTeam = [];
+let editingProductId = null;
+let productImages = [null,null,null,null,null,null]; // {file, url} per slot
+
+/* ---------- Login ---------- */
+document.getElementById("loginBtn").addEventListener("click", tryLogin);
+document.getElementById("loginPass").addEventListener("keydown", e => { if(e.key==="Enter") tryLogin(); });
+document.getElementById("loginEmail").addEventListener("keydown", e => { if(e.key==="Enter") tryLogin(); });
+
+async function tryLogin(){
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const errEl = document.getElementById("loginErr");
+  errEl.textContent = "";
+  if(!email || !password){ errEl.textContent = "Enter email and password."; return; }
+
+  const {data, error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ errEl.textContent = "Incorrect email or password."; return; }
+
+  const admin = await verifyAdmin(data.user);
+  if(!admin){
+    errEl.textContent = "This account is not authorized as an admin.";
+    await sb.auth.signOut();
+    return;
+  }
+  enterApp(admin);
+}
+
+async function verifyAdmin(user){
+  if(!user) return null;
+  const {data, error} = await sb.from("admin_users").select("*").eq("email", user.email).maybeSingle();
+  if(error || !data) return null;
+  // Link auth_uid on first successful login if not already linked
+  if(!data.auth_uid){
+    await sb.from("admin_users").update({auth_uid: user.id}).eq("id", data.id);
+  }
+  return data;
+}
+
+function enterApp(admin){
+  currentAdmin = admin;
+  document.getElementById("loginGate").style.display = "none";
+  document.getElementById("app").classList.add("show");
+  if(admin.role === "owner"){
+    document.getElementById("teamNavItem").style.display = "flex";
+  }
+  initAll();
+}
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  location.reload();
+});
+
+/* ---------- Restore session on reload ---------- */
+(async function checkSession(){
+  const {data: {session}} = await sb.auth.getSession();
+  if(session && session.user){
+    const admin = await verifyAdmin(session.user);
+    if(admin){ enterApp(admin); return; }
+  }
+})();
+
+/* ---------- Nav ---------- */
+document.querySelectorAll(".nav-item").forEach(item => {
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    item.classList.add("active");
+    document.getElementById("page-" + item.dataset.page).classList.add("active");
+  });
+});
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function showToast(msg, isErr=false){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.toggle("err", isErr);
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2500);
+}
+function formatPrice(n){ return "₹" + Number(n||0).toLocaleString("en-IN"); }
+
+/* ---------- Init ---------- */
+async function initAll(){
+  const tasks = [loadProducts(), loadOrders(), loadCustomers(), loadDiscounts(), loadSettings()];
+  if(currentAdmin && currentAdmin.role === "owner") tasks.push(loadTeam());
+  await Promise.all(tasks);
+  renderDashboard();
+}
+
+/* ============ TEAM (owner only) ============ */
+async function loadTeam(){
+  const {data, error} = await sb.from("admin_users").select("*").order("created_at",{ascending:true});
+  if(error){ console.error(error); return; }
+  allTeam = data || [];
+  renderTeam();
+}
+function renderTeam(){
+  const body = document.getElementById("teamBody");
+  if(!body) return;
+  if(allTeam.length === 0){ body.innerHTML = `<tr><td colspan="6" class="empty-row">No team members yet.</td></tr>`; return; }
+  body.innerHTML = allTeam.map(t => `
+    <tr>
+      <td><strong>${t.full_name || '—'}</strong></td>
+      <td>${t.email}</td>
+      <td style="text-transform:capitalize;">${t.role}</td>
+      <td><span class="pill ${t.auth_uid ? 'delivered':'placed'}">${t.auth_uid ? 'Active' : 'Pending login setup'}</span></td>
+      <td style="font-size:12px;color:var(--mid);">${new Date(t.created_at).toLocaleDateString("en-IN")}</td>
+      <td>${t.email === currentAdmin.email ? '' : `<button class="icon-action" data-remove-team="${t.id}"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></button>`}</td>
+    </tr>
+  `).join("");
+  body.querySelectorAll("[data-remove-team]").forEach(b => b.addEventListener("click", async () => {
+    if(!confirm("Remove this person's admin access?")) return;
+    await sb.from("admin_users").delete().eq("id", b.dataset.removeTeam);
+    showToast("Access removed");
+    loadTeam();
+  }));
+}
+const teamModalOverlay = document.getElementById("teamModalOverlay");
+document.getElementById("addTeamBtn")?.addEventListener("click", () => {
+  document.getElementById("tName").value = "";
+  document.getElementById("tEmail").value = "";
+  document.getElementById("tRole").value = "admin";
+  teamModalOverlay.classList.add("show");
+});
+document.getElementById("closeTeamModal").addEventListener("click", () => teamModalOverlay.classList.remove("show"));
+document.getElementById("cancelTeamBtn").addEventListener("click", () => teamModalOverlay.classList.remove("show"));
+document.getElementById("saveTeamBtn").addEventListener("click", async () => {
+  const full_name = document.getElementById("tName").value.trim();
+  const email = document.getElementById("tEmail").value.trim().toLowerCase();
+  const role = document.getElementById("tRole").value;
+  if(!email){ showToast("Email is required", true); return; }
+  const {error} = await sb.from("admin_users").insert({full_name, email, role});
+  if(error){ showToast(error.message.includes("duplicate") ? "This email already has access" : "Error adding member", true); return; }
+  showToast("Access granted — now create their login in Supabase Dashboard");
+  teamModalOverlay.classList.remove("show");
+  loadTeam();
+});
+
+/* ============ PRODUCTS ============ */
+async function loadProducts(){
+  const {data, error} = await sb.from("products").select("*").order("created_at",{ascending:false});
+  if(error){ showToast("Error loading products", true); console.error(error); return; }
+  allProducts = data || [];
+  renderProducts();
+}
+function renderProducts(filter=""){
+  const body = document.getElementById("productsBody");
+  const items = allProducts.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+  if(items.length === 0){ body.innerHTML = `<tr><td colspan="6" class="empty-row">No products found.</td></tr>`; return; }
+  body.innerHTML = items.map(p => `
+    <tr>
+      <td><div class="row-name"><img class="prod-thumb" src="${(p.images&&p.images[0])||'https://picsum.photos/seed/'+p.id+'/100/130'}"><strong>${p.name}</strong></div></td>
+      <td style="text-transform:capitalize;">${p.category}</td>
+      <td>${formatPrice(p.price)}</td>
+      <td>${p.stock}${p.stock < 5 ? ' ⚠️' : ''}</td>
+      <td>${p.featured ? '✓' : '—'}</td>
+      <td>
+        <button class="icon-action" data-edit="${p.id}"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
+        <button class="icon-action" data-delete="${p.id}"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+      </td>
+    </tr>
+  `).join("");
+  body.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openProductModal(b.dataset.edit)));
+  body.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => deleteProduct(b.dataset.delete)));
+}
+document.getElementById("productSearch").addEventListener("input", e => renderProducts(e.target.value));
+
+function buildImgGrid(){
+  const grid = document.getElementById("imgGrid");
+  grid.innerHTML = "";
+  for(let i=0;i<6;i++){
+    const slot = document.createElement("div");
+    slot.className = "img-slot";
+    const existing = productImages[i];
+    slot.innerHTML = existing ? `<img src="${existing.url}">` : `<span class="plus">+</span>`;
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "image/*";
+    input.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if(!file) return;
+      productImages[i] = {file, url: URL.createObjectURL(file)};
+      buildImgGrid();
+    });
+    slot.appendChild(input);
+    grid.appendChild(slot);
+  }
+}
+
+function openProductModal(id=null){
+  editingProductId = id;
+  productImages = [null,null,null,null,null,null];
+  if(id){
+    const p = allProducts.find(x => x.id === id);
+    document.getElementById("productModalTitle").textContent = "Edit Product";
+    document.getElementById("fName").value = p.name;
+    document.getElementById("fDesc").value = p.description || "";
+    document.getElementById("fCategory").value = p.category;
+    document.getElementById("fGender").value = p.gender;
+    document.getElementById("fPrice").value = p.price;
+    document.getElementById("fOldPrice").value = p.old_price || "";
+    document.getElementById("fSizes").value = (p.sizes||[]).join(", ");
+    document.getElementById("fStock").value = p.stock;
+    document.getElementById("toggleFeatured").classList.toggle("on", !!p.featured);
+    (p.images||[]).forEach((url,i) => { if(i<6) productImages[i] = {file:null, url}; });
+  } else {
+    document.getElementById("productModalTitle").textContent = "Add Product";
+    ["fName","fDesc","fPrice","fOldPrice","fSizes","fStock"].forEach(id2 => document.getElementById(id2).value = "");
+    document.getElementById("fCategory").value = "women";
+    document.getElementById("fGender").value = "women";
+    document.getElementById("toggleFeatured").classList.remove("on");
+  }
+  buildImgGrid();
+  document.getElementById("productModalOverlay").classList.add("show");
+}
+document.getElementById("addProductBtn").addEventListener("click", () => openProductModal());
+document.getElementById("closeProductModal").addEventListener("click", () => document.getElementById("productModalOverlay").classList.remove("show"));
+document.getElementById("cancelProductBtn").addEventListener("click", () => document.getElementById("productModalOverlay").classList.remove("show"));
+document.getElementById("toggleFeatured").addEventListener("click", function(){ this.classList.toggle("on"); });
+
+async function uploadImage(file){
+  const ext = file.name.split(".").pop();
+  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const {error} = await sb.storage.from("product-images").upload(path, file);
+  if(error){ console.error(error); throw error; }
+  const {data} = sb.storage.from("product-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+document.getElementById("saveProductBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("saveProductBtn");
+  btn.textContent = "Saving..."; btn.disabled = true;
+  try{
+    const finalImages = [];
+    for(const slot of productImages){
+      if(!slot) continue;
+      if(slot.file){ finalImages.push(await uploadImage(slot.file)); }
+      else { finalImages.push(slot.url); }
+    }
+    const payload = {
+      name: document.getElementById("fName").value.trim(),
+      description: document.getElementById("fDesc").value.trim(),
+      category: document.getElementById("fCategory").value,
+      gender: document.getElementById("fGender").value,
+      price: parseFloat(document.getElementById("fPrice").value) || 0,
+      old_price: document.getElementById("fOldPrice").value ? parseFloat(document.getElementById("fOldPrice").value) : null,
+      sizes: document.getElementById("fSizes").value.split(",").map(s=>s.trim()).filter(Boolean),
+      stock: parseInt(document.getElementById("fStock").value) || 0,
+      featured: document.getElementById("toggleFeatured").classList.contains("on"),
+      images: finalImages,
+    };
+    if(!payload.name || !payload.price){ showToast("Name and price are required", true); btn.textContent="Save Product"; btn.disabled=false; return; }
+
+    if(editingProductId){
+      const {error} = await sb.from("products").update(payload).eq("id", editingProductId);
+      if(error) throw error;
+      showToast("Product updated");
+    } else {
+      const {error} = await sb.from("products").insert(payload);
+      if(error) throw error;
+      showToast("Product added");
+    }
+    document.getElementById("productModalOverlay").classList.remove("show");
+    await loadProducts();
+    renderDashboard();
+  } catch(err){
+    console.error(err);
+    showToast("Error saving product", true);
+  }
+  btn.textContent = "Save Product"; btn.disabled = false;
+});
+
+async function deleteProduct(id){
+  if(!confirm("Delete this product? This cannot be undone.")) return;
+  const {error} = await sb.from("products").delete().eq("id", id);
+  if(error){ showToast("Error deleting product", true); return; }
+  showToast("Product deleted");
+  await loadProducts();
+  renderDashboard();
+}
+
+/* ============ ORDERS ============ */
+async function loadOrders(){
+  const {data, error} = await sb.from("orders").select("*").order("created_at",{ascending:false});
+  if(error){ showToast("Error loading orders", true); console.error(error); return; }
+  allOrders = data || [];
+  renderOrders();
+}
+function renderOrders(){
+  const body = document.getElementById("ordersBody");
+  if(allOrders.length === 0){ body.innerHTML = `<tr><td colspan="7" class="empty-row">No orders yet.</td></tr>`; return; }
+  body.innerHTML = allOrders.map(o => `
+    <tr>
+      <td><a data-view="${o.id}" style="font-weight:700;cursor:pointer;">${o.order_number}</a></td>
+      <td>${o.customer_name}<br><span style="color:var(--mid);font-size:11.5px;">${o.customer_phone}</span></td>
+      <td>${(o.items||[]).length} item(s)</td>
+      <td>${formatPrice(o.subtotal)}</td>
+      <td><span class="pill ${o.payment_status}">${o.payment_status}</span></td>
+      <td>
+        <select class="status-select" data-status="${o.id}">
+          ${["placed","packed","shipped","delivered","cancelled"].map(s => `<option value="${s}" ${o.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join("")}
+        </select>
+      </td>
+      <td style="font-size:12px;color:var(--mid);">${new Date(o.created_at).toLocaleDateString("en-IN")}</td>
+    </tr>
+  `).join("");
+  body.querySelectorAll("[data-view]").forEach(a => a.addEventListener("click", () => viewOrder(a.dataset.view)));
+  body.querySelectorAll("[data-status]").forEach(sel => sel.addEventListener("change", () => updateOrderStatus(sel.dataset.status, sel.value)));
+}
+async function updateOrderStatus(id, status){
+  const {error} = await sb.from("orders").update({status, updated_at: new Date().toISOString()}).eq("id", id);
+  if(error){ showToast("Error updating status", true); return; }
+  showToast("Order status updated");
+  await loadOrders();
+  renderDashboard();
+}
+function viewOrder(id){
+  const o = allOrders.find(x => x.id === id);
+  const body = document.getElementById("orderModalBody");
+  body.innerHTML = `
+    <div class="form-row"><label>Order Number</label><div>${o.order_number}</div></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Customer</label><div>${o.customer_name}</div></div>
+      <div class="form-row"><label>Phone</label><div>${o.customer_phone}</div></div>
+    </div>
+    <div class="form-row"><label>Shipping Address</label><div>${o.shipping_address || '—'}</div></div>
+    <div class="form-row"><label>Items</label>
+      ${(o.items||[]).map(it => `<div style="padding:8px 0;border-bottom:1px solid rgba(15,42,29,0.08);font-size:13.5px;">${it.name} ${it.size?('· Size '+it.size):''} × ${it.qty} — ${formatPrice(it.price*it.qty)}</div>`).join("")}
+    </div>
+    <div class="form-row"><label>Subtotal</label><div style="font-weight:700;">${formatPrice(o.subtotal)}</div></div>
+  `;
+  document.getElementById("orderModalOverlay").classList.add("show");
+}
+document.getElementById("closeOrderModal").addEventListener("click", () => document.getElementById("orderModalOverlay").classList.remove("show"));
+
+/* ============ CUSTOMERS ============ */
+async function loadCustomers(){
+  const {data, error} = await sb.from("customers").select("*").order("total_spent",{ascending:false});
+  if(error){ console.error(error); return; }
+  allCustomers = data || [];
+  renderCustomers();
+}
+function renderCustomers(){
+  const body = document.getElementById("customersBody");
+  if(allCustomers.length === 0){ body.innerHTML = `<tr><td colspan="5" class="empty-row">No customers yet.</td></tr>`; return; }
+  body.innerHTML = allCustomers.map(c => `
+    <tr>
+      <td><strong>${c.name || '—'}</strong></td>
+      <td>${c.phone || '—'}</td>
+      <td>${c.email || '—'}</td>
+      <td>${c.total_orders || 0}</td>
+      <td>${formatPrice(c.total_spent)}</td>
+    </tr>
+  `).join("");
+}
+
+/* ============ DISCOUNTS ============ */
+async function loadDiscounts(){
+  const {data, error} = await sb.from("discounts").select("*").order("created_at",{ascending:false});
+  if(error){ console.error(error); return; }
+  allDiscounts = data || [];
+  renderDiscounts();
+}
+function renderDiscounts(){
+  const body = document.getElementById("discountsBody");
+  if(allDiscounts.length === 0){ body.innerHTML = `<tr><td colspan="5" class="empty-row">No discount codes yet.</td></tr>`; return; }
+  body.innerHTML = allDiscounts.map(d => `
+    <tr>
+      <td><strong>${d.code}</strong></td>
+      <td>${d.percent}%</td>
+      <td>${d.expires_at ? new Date(d.expires_at).toLocaleDateString("en-IN") : '—'}</td>
+      <td><span class="pill ${d.active ? 'delivered':'cancelled'}">${d.active ? 'Active':'Inactive'}</span></td>
+      <td>
+        <button class="icon-action" data-toggle-disc="${d.id}" data-active="${d.active}"><svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg></button>
+        <button class="icon-action" data-del-disc="${d.id}"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+      </td>
+    </tr>
+  `).join("");
+  body.querySelectorAll("[data-toggle-disc]").forEach(b => b.addEventListener("click", async () => {
+    await sb.from("discounts").update({active: b.dataset.active !== "true"}).eq("id", b.dataset.toggleDisc);
+    loadDiscounts();
+  }));
+  body.querySelectorAll("[data-del-disc]").forEach(b => b.addEventListener("click", async () => {
+    if(!confirm("Delete this code?")) return;
+    await sb.from("discounts").delete().eq("id", b.dataset.delDisc);
+    loadDiscounts();
+  }));
+}
+document.getElementById("addDiscountBtn").addEventListener("click", () => document.getElementById("discountModalOverlay").classList.add("show"));
+document.getElementById("closeDiscountModal").addEventListener("click", () => document.getElementById("discountModalOverlay").classList.remove("show"));
+document.getElementById("cancelDiscountBtn").addEventListener("click", () => document.getElementById("discountModalOverlay").classList.remove("show"));
+document.getElementById("saveDiscountBtn").addEventListener("click", async () => {
+  const code = document.getElementById("dCode").value.trim().toUpperCase();
+  const percent = parseFloat(document.getElementById("dPercent").value);
+  const expiry = document.getElementById("dExpiry").value || null;
+  if(!code || !percent){ showToast("Code and percent required", true); return; }
+  const {error} = await sb.from("discounts").insert({code, percent, expires_at: expiry, active:true});
+  if(error){ showToast("Error creating code (maybe duplicate?)", true); return; }
+  showToast("Discount code created");
+  document.getElementById("discountModalOverlay").classList.remove("show");
+  document.getElementById("dCode").value=""; document.getElementById("dPercent").value=""; document.getElementById("dExpiry").value="";
+  loadDiscounts();
+});
+
+/* ============ SETTINGS ============ */
+async function loadSettings(){
+  const {data, error} = await sb.from("site_settings").select("*").eq("id",1).single();
+  if(error){ console.error(error); return; }
+  document.getElementById("setAnnouncement").value = data.announcement || "";
+  document.getElementById("toggleCOD").classList.toggle("on", !!data.cod_enabled);
+  document.getElementById("toggleUPI").classList.toggle("on", !!data.upi_enabled);
+  document.getElementById("setUpiId").value = data.upi_id || "";
+}
+document.getElementById("toggleCOD").addEventListener("click", function(){ this.classList.toggle("on"); });
+document.getElementById("toggleUPI").addEventListener("click", function(){ this.classList.toggle("on"); });
+document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+  const payload = {
+    announcement: document.getElementById("setAnnouncement").value,
+    cod_enabled: document.getElementById("toggleCOD").classList.contains("on"),
+    upi_enabled: document.getElementById("toggleUPI").classList.contains("on"),
+    upi_id: document.getElementById("setUpiId").value,
+    updated_at: new Date().toISOString(),
+  };
+  const {error} = await sb.from("site_settings").update(payload).eq("id",1);
+  if(error){ showToast("Error saving settings", true); return; }
+  showToast("Settings saved");
+});
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const revenue = allOrders.reduce((sum,o) => sum + Number(o.subtotal||0), 0);
+  document.getElementById("statRevenue").textContent = formatPrice(revenue);
+  document.getElementById("statOrders").textContent = allOrders.length;
+  document.getElementById("statProducts").textContent = allProducts.length;
+  document.getElementById("statLowStock").textContent = allProducts.filter(p => p.stock < 5).length;
+
+  const recent = allOrders.slice(0,6);
+  const body = document.getElementById("recentOrdersBody");
+  body.innerHTML = recent.length === 0
+    ? `<tr><td colspan="5" class="empty-row">No orders yet.</td></tr>`
+    : recent.map(o => `
+      <tr>
+        <td><strong>${o.order_number}</strong></td>
+        <td>${o.customer_name}</td>
+        <td>${formatPrice(o.subtotal)}</td>
+        <td><span class="pill ${o.status}">${o.status}</span></td>
+        <td style="font-size:12px;color:var(--mid);">${new Date(o.created_at).toLocaleDateString("en-IN")}</td>
+      </tr>
+    `).join("");
+}
+</script>
+</body>
+</html>
