@@ -1328,16 +1328,31 @@ function initSpheresScene(){
   const container = document.getElementById("spheresSection");
   if(!container || typeof THREE === "undefined") return;
 
+  const isMobile = window.innerWidth < 680 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  let renderer;
+  try{
+    renderer = new THREE.WebGLRenderer({
+      antialias: !isMobile,
+      alpha: true,
+      powerPreference: "low-power",
+      failIfMajorPerformanceCaveat: false,
+    });
+  } catch(err){
+    console.warn("WebGL unavailable, showing static background", err);
+    return;
+  }
+  if(!renderer){ return; }
+
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
   camera.position.z = 9;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
   container.appendChild(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const key = new THREE.PointLight(0xE3EED4, 1.1, 30);
   key.position.set(4, 5, 6);
   scene.add(key);
@@ -1347,19 +1362,25 @@ function initSpheresScene(){
 
   const palette = [0x0F2A1D, 0x375534, 0x6B9071, 0xAEC3B0, 0xE3EED4];
   const spheres = [];
-  const count = window.innerWidth < 680 ? 10 : 16;
+  const count = isMobile ? 8 : 16;
 
   for(let i = 0; i < count; i++){
     const radius = 0.35 + Math.random() * 0.55;
-    const geo = new THREE.SphereGeometry(radius, 48, 48);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: palette[i % palette.length],
-      roughness: 0.25,
-      metalness: 0.1,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.2,
-      reflectivity: 0.5,
-    });
+    const geo = new THREE.SphereGeometry(radius, isMobile ? 24 : 48, isMobile ? 24 : 48);
+    const mat = isMobile
+      ? new THREE.MeshStandardMaterial({
+          color: palette[i % palette.length],
+          roughness: 0.35,
+          metalness: 0.15,
+        })
+      : new THREE.MeshPhysicalMaterial({
+          color: palette[i % palette.length],
+          roughness: 0.25,
+          metalness: 0.1,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.2,
+          reflectivity: 0.5,
+        });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(
       (Math.random() - 0.5) * 9,
@@ -1398,24 +1419,28 @@ function initSpheresScene(){
   const clock = new THREE.Clock();
 
   function animate(){
-    requestAnimationFrame(animate);
-    const t = clock.getElapsedTime();
+    try{
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
 
-    pointer.x += (targetPointer.x - pointer.x) * 0.05;
-    pointer.y += (targetPointer.y - pointer.y) * 0.05;
+      pointer.x += (targetPointer.x - pointer.x) * 0.05;
+      pointer.y += (targetPointer.y - pointer.y) * 0.05;
 
-    spheres.forEach((mesh, i) => {
-      const d = mesh.userData;
-      const floatY = Math.sin(t * d.floatSpeed + d.floatOffset) * 0.25;
-      const pushX = pointer.x * (1.2 + (i % 3) * 0.4);
-      const pushY = pointer.y * (0.8 + (i % 3) * 0.3);
-      mesh.position.x += (d.baseX + pushX - mesh.position.x) * 0.04;
-      mesh.position.y += (d.baseY + pushY + floatY - mesh.position.y) * 0.04;
-      mesh.rotation.x += 0.002;
-      mesh.rotation.y += 0.003;
-    });
+      spheres.forEach((mesh, i) => {
+        const d = mesh.userData;
+        const floatY = Math.sin(t * d.floatSpeed + d.floatOffset) * 0.25;
+        const pushX = pointer.x * (1.2 + (i % 3) * 0.4);
+        const pushY = pointer.y * (0.8 + (i % 3) * 0.3);
+        mesh.position.x += (d.baseX + pushX - mesh.position.x) * 0.04;
+        mesh.position.y += (d.baseY + pushY + floatY - mesh.position.y) * 0.04;
+        mesh.rotation.x += 0.002;
+        mesh.rotation.y += 0.003;
+      });
 
-    renderer.render(scene, camera);
+      renderer.render(scene, camera);
+    } catch(err){
+      console.warn("Spheres animation stopped:", err);
+    }
   }
   animate();
 
@@ -1428,10 +1453,17 @@ function initSpheresScene(){
 }
 
 if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
-  if(typeof THREE !== "undefined"){
-    initSpheresScene();
-  } else {
-    window.addEventListener("load", () => { if(typeof THREE !== "undefined") initSpheresScene(); });
+  try{
+    if(typeof THREE !== "undefined"){
+      initSpheresScene();
+    } else {
+      window.addEventListener("load", () => {
+        try{ if(typeof THREE !== "undefined") initSpheresScene(); }
+        catch(err){ console.warn("Spheres scene failed to load:", err); }
+      });
+    }
+  } catch(err){
+    console.warn("Spheres scene failed to init:", err);
   }
 }
 
