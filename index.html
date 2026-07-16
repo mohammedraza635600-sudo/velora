@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   :root{
     --deepest:#0F2A1D;
@@ -576,6 +577,32 @@
     #chatWindow{right:12px;bottom:86px;width:calc(100vw - 24px);}
     #chatToggle{right:16px;bottom:16px;}
   }
+  /* ---------- Interactive Spheres Section ---------- */
+  .spheres-section{
+    position:relative;max-width:1320px;margin:0 auto 90px;
+    border-radius:var(--radius-lg);overflow:hidden;
+    height:460px;background:linear-gradient(160deg, var(--deepest) 0%, var(--dark) 100%);
+  }
+  .spheres-section canvas{display:block;width:100%;height:100%;touch-action:none;}
+  .spheres-overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;
+    pointer-events:none;padding:0 24px;
+  }
+  .spheres-overlay .hero-eyebrow{color:var(--light);justify-content:center;margin-bottom:18px;}
+  .spheres-overlay .hero-eyebrow::before{background:var(--gold);}
+  .spheres-overlay h2{
+    font-family:var(--font-display);font-weight:400;
+    font-size:clamp(30px,4vw,52px);color:var(--cream);
+    letter-spacing:-0.01em;
+  }
+  .spheres-overlay p{
+    font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--light);
+    margin-top:16px;opacity:0.75;
+  }
+  @media (max-width:680px){
+    .spheres-section{height:360px;margin-bottom:60px;border-radius:20px;}
+  }
 </style>
 </head>
 <body>
@@ -686,6 +713,14 @@
     <input type="email" placeholder="Your email address" required>
     <button type="submit" class="btn btn-primary">Subscribe</button>
   </form>
+</div>
+
+<div class="spheres-section" id="spheresSection">
+  <div class="spheres-overlay">
+    <div class="hero-eyebrow">The Verdant Edit</div>
+    <h2>Five tones. One story.</h2>
+    <p>Move your cursor — or your finger — to explore.</p>
+  </div>
 </div>
 
 <footer>
@@ -1287,6 +1322,118 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+/* ---------- Interactive Spheres (Three.js) ---------- */
+function initSpheresScene(){
+  const container = document.getElementById("spheresSection");
+  if(!container || typeof THREE === "undefined") return;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.z = 9;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const key = new THREE.PointLight(0xE3EED4, 1.1, 30);
+  key.position.set(4, 5, 6);
+  scene.add(key);
+  const rim = new THREE.PointLight(0x6B9071, 0.9, 30);
+  rim.position.set(-5, -3, 4);
+  scene.add(rim);
+
+  const palette = [0x0F2A1D, 0x375534, 0x6B9071, 0xAEC3B0, 0xE3EED4];
+  const spheres = [];
+  const count = window.innerWidth < 680 ? 10 : 16;
+
+  for(let i = 0; i < count; i++){
+    const radius = 0.35 + Math.random() * 0.55;
+    const geo = new THREE.SphereGeometry(radius, 48, 48);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: palette[i % palette.length],
+      roughness: 0.25,
+      metalness: 0.1,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.2,
+      reflectivity: 0.5,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(
+      (Math.random() - 0.5) * 9,
+      (Math.random() - 0.5) * 4.5,
+      (Math.random() - 0.5) * 3
+    );
+    mesh.userData = {
+      baseX: mesh.position.x,
+      baseY: mesh.position.y,
+      baseZ: mesh.position.z,
+      floatSpeed: 0.4 + Math.random() * 0.6,
+      floatOffset: Math.random() * Math.PI * 2,
+    };
+    scene.add(mesh);
+    spheres.push(mesh);
+  }
+
+  let pointer = { x: 0, y: 0 };
+  let targetPointer = { x: 0, y: 0 };
+
+  function updatePointerFromEvent(clientX, clientY){
+    const rect = container.getBoundingClientRect();
+    targetPointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    targetPointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  container.addEventListener("mousemove", (e) => updatePointerFromEvent(e.clientX, e.clientY));
+  container.addEventListener("touchmove", (e) => {
+    if(e.touches[0]){
+      updatePointerFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+  container.addEventListener("mouseleave", () => { targetPointer.x = 0; targetPointer.y = 0; });
+  container.addEventListener("touchend", () => { targetPointer.x = 0; targetPointer.y = 0; });
+
+  const clock = new THREE.Clock();
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+
+    pointer.x += (targetPointer.x - pointer.x) * 0.05;
+    pointer.y += (targetPointer.y - pointer.y) * 0.05;
+
+    spheres.forEach((mesh, i) => {
+      const d = mesh.userData;
+      const floatY = Math.sin(t * d.floatSpeed + d.floatOffset) * 0.25;
+      const pushX = pointer.x * (1.2 + (i % 3) * 0.4);
+      const pushY = pointer.y * (0.8 + (i % 3) * 0.3);
+      mesh.position.x += (d.baseX + pushX - mesh.position.x) * 0.04;
+      mesh.position.y += (d.baseY + pushY + floatY - mesh.position.y) * 0.04;
+      mesh.rotation.x += 0.002;
+      mesh.rotation.y += 0.003;
+    });
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener("resize", () => {
+    if(!container.clientWidth) return;
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  });
+}
+
+if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+  if(typeof THREE !== "undefined"){
+    initSpheresScene();
+  } else {
+    window.addEventListener("load", () => { if(typeof THREE !== "undefined") initSpheresScene(); });
+  }
+}
 
 /* ---------- Chat Widget ---------- */
 /* To make this a real AI chatbot, get an Anthropic API key from
